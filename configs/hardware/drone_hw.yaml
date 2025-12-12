@@ -1,0 +1,119 @@
+# Drone Hardware Configuration
+# File: configs/hardware/drone.yaml
+
+hardware:
+  type: "drone"
+  platform: "crazyflie"
+  communication: "cradio"
+
+connection:
+  usb_device: "/dev/ttyUSB0"
+  baudrate: 115200
+  timeout: 5.0
+
+drone:
+  model: "crazyflie_2.1"
+  mass: 0.027  # kg
+  inertia: [0.0000206, 0.0000206, 0.000384]
+  
+  propeller:
+    diameter: 0.092  # meters
+    mass: 0.001  # kg per propeller
+  
+  battery:
+    capacity: 240  # mAh
+    voltage: 3.7  # V
+    max_discharge_rate: 10  # C
+    low_voltage_threshold: 2.9  # V
+
+motors:
+  type: "brushed_DC"
+  max_rpm: 8000
+  control_frequency: 1000  # Hz
+  
+  mapping:
+    motor_1: [1, 0, 1]    # Front Right
+    motor_2: [-1, 0, 1]   # Front Left
+    motor_3: [-1, 0, -1]  # Back Left
+    motor_4: [1, 0, -1]   # Back Right
+
+control:
+  mode: "attitude"  # Options: rate, attitude, position
+  frequency: 100  # Hz
+  
+  rate_limits:
+    roll_rate: 200  # deg/s
+    pitch_rate: 200
+    yaw_rate: 200
+  
+  attitude_limits:
+    max_roll: 30  # degrees
+    max_pitch: 30
+    max_yaw_rate: 200
+  
+  position:
+    update_frequency: 50  # Hz
+    estimation_method: "kalman"
+
+sensors:
+  imu:
+    enabled: true
+    accelerometer_range: 16  # g
+    gyroscope_range: 2000  # deg/s
+    update_rate: 500  # Hz
+  
+  barometer:
+    enabled: true
+    altitude_accuracy: 0.1  # meters
+  
+  flow_sensor:
+    enabled: true
+    range: 10  # meters
+  
+  distance_sensor:
+    enabled: true
+    range: 4  # meters
+
+localization:
+  method: "flow_based"  # Options: flow_based, external_tracking, gps
+  
+  external_tracking:
+    enabled: false
+    type: "optitrack"
+    ip_address: "192.168.1.50"
+    port: 1510
+
+communication:
+  link_type: "2M"  # Data rate: 2M, 1M, 250K
+  channel: 80
+  transmission_power: 0  # dBm (max)
+  
+  telemetry:
+    enabled: true
+    rate: 50  # Hz
+    compressed: true
+
+safety:
+  geofence_enabled: true
+  geofence_radius: 5.0  # meters
+  max_altitude: 3.0  # meters
+  
+  failsafe:
+    enabled: true
+    action: "land"
+    timeout: 5.0  # seconds
+  
+  battery:
+    monitor_enabled: true
+    warning_threshold: 20  # %
+    critical_threshold: 10  # %
+
+logging:
+  enabled: true
+  log_level: "INFO"
+  topics:
+    - imu
+    - battery
+    - position
+    - attitude
+    - motor_commands

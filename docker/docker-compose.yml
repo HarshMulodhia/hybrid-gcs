@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  hybrid-gcs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hybrid-gcs-app
+    image: hybrid-gcs:2.0.0
+    
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CUDA_VISIBLE_DEVICES=0
+    
+    volumes:
+      - ./results:/app/results
+      - ./data:/app/data
+      - ./logs:/app/logs
+    
+    ports:
+      - "6006:6006"  # TensorBoard
+      - "8888:8888"  # Jupyter
+      - "5000:5000"  # API
+    
+    networks:
+      - hybrid-gcs-net
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "from hybrid_gcs import GCSDecomposer; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: tensorboard
+    
+    volumes:
+      - ./results/logs:/logs
+    
+    ports:
+      - "6006:6006"
+    
+    command: tensorboard --logdir=/logs --host=0.0.0.0
+    
+    networks:
+      - hybrid-gcs-net
+    
+    restart: unless-stopped
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jupyter-hybrid-gcs
+    
+    volumes:
+      - ./notebooks:/app/notebooks
+      - ./data:/app/data
+      - ./results:/app/results
+    
+    ports:
+      - "8888:8888"
+    
+    command: jupyter notebook --ip=0.0.0.0 --allow-root --no-browser /app/notebooks
+    
+    networks:
+      - hybrid-gcs-net
+    
+    restart: unless-stopped
+
+networks:
+  hybrid-gcs-net:
+    driver: bridge
+
+volumes:
+  results:
+  data:
+  logs:

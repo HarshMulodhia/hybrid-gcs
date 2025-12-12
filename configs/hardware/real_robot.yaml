@@ -1,0 +1,107 @@
+# Real Robot Configuration
+# File: configs/hardware/real_robot.yaml
+
+hardware:
+  type: "real_robot"
+  robot_model: "ur5"
+  control_interface: "socket"
+  
+connection:
+  ip_address: "192.168.1.100"
+  port: 30003
+  timeout: 5.0
+  reconnect_interval: 1.0
+
+control:
+  mode: "velocity"  # Options: position, velocity, torque, impedance
+  frequency: 125  # Hz
+  watchdog_timeout: 0.5  # seconds
+  
+  velocity:
+    max_speed: 3.14  # rad/s
+    acceleration_limit: 10.0
+    deceleration_limit: 10.0
+  
+  position:
+    target_tolerance: 0.01  # rad
+    timeout: 10.0  # seconds
+  
+  torque:
+    torque_limits: [150, 150, 150, 50, 50, 50]
+    damping: 0.1
+
+safety:
+  enable_safety_checks: true
+  emergency_stop_enabled: true
+  
+  joint_limits:
+    enabled: true
+    margins: 0.1  # rad safety margin
+  
+  collision_detection:
+    enabled: true
+    threshold: 30.0  # N
+    recovery_mode: "slow_move_backward"
+  
+  velocity_limits:
+    enabled: true
+    linear_max: 1.0  # m/s
+    angular_max: 1.57  # rad/s
+  
+  workspace_boundaries:
+    enabled: true
+    x: [-1.5, 1.5]
+    y: [-1.5, 1.5]
+    z: [0, 2.5]
+
+gripper:
+  model: "onrobot_vg10"
+  ip_address: "192.168.1.101"
+  port: 502
+  
+  force_settings:
+    min_force: 20
+    max_force: 100
+    default_force: 50
+  
+  speed_settings:
+    min_speed: 10
+    max_speed: 150
+    default_speed: 100
+
+sensors:
+  force_torque_sensor:
+    enabled: true
+    type: "ati_axia80"
+    calibration_file: "calib/ft_sensor_calib.txt"
+    
+  joint_encoders:
+    enabled: true
+    resolution: 0.001  # rad
+  
+  proximity_sensors:
+    enabled: false
+    max_range: 0.5  # meters
+
+monitoring:
+  enable_joint_monitoring: true
+  enable_temperature_monitoring: true
+  enable_current_monitoring: true
+  
+  thresholds:
+    joint_temperature_max: 80  # Celsius
+    joint_current_max: 15  # Amps
+    motor_temperature_max: 100  # Celsius
+
+logging:
+  enable_data_logging: true
+  log_directory: "/var/log/ur5_control"
+  log_frequency: 10  # Hz
+  
+  log_topics:
+    - joint_angles
+    - joint_velocities
+    - joint_torques
+    - tcp_position
+    - tcp_velocity
+    - gripper_state

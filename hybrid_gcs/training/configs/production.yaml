@@ -1,0 +1,68 @@
+# Production Training Configuration
+# File: hybrid_gcs/training/configs/production.yaml
+
+environment:
+  name: "manipulation"
+  state_dim: 20
+  action_dim: 6
+  max_steps: 500  # Full episode length
+
+training:
+  num_episodes: 10000  # Extensive training
+  batch_size: 64  # Larger batch
+  num_epochs: 4  # More epochs
+  update_frequency: 4096  # Frequent updates
+
+learning:
+  learning_rate: 1e-4  # Conservative learning
+  gamma: 0.999  # Longer horizon
+  gae_lambda: 0.98  # Better TD
+  entropy_coefficient: 0.001  # Lower exploration
+  value_coefficient: 0.5
+  max_grad_norm: 0.3
+
+network:
+  policy:
+    hidden_layers: [256, 256, 128]  # Larger network
+    activation: "relu"
+  
+  value:
+    hidden_layers: [256, 256, 128]
+    activation: "relu"
+
+curriculum:
+  enabled: true
+  type: "exponential"
+  schedule:
+    start_difficulty: 0.0
+    end_difficulty: 1.0
+    total_steps: 10000000
+    decay_rate: 0.001
+
+checkpointing:
+  enabled: true
+  frequency: 500  # Frequent checkpoints
+  save_dir: "results/models/production"
+  keep_best: true
+  keep_last: 10
+
+logging:
+  level: "INFO"
+  frequency: 100  # Less frequent logging
+  log_dir: "results/logs/production"
+  tensorboard: true
+
+monitoring:
+  enabled: true
+  track_gradients: true
+  track_weights: true
+  update_frequency: 1000
+
+device: "cuda"  # Use GPU
+seed: 42
+
+optimization:
+  optimizer: "adam"
+  eps: 1e-5
+  weight_decay: 1e-5
+  warmup_steps: 1000

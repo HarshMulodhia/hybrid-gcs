@@ -1,0 +1,49 @@
+# Fast Training Configuration (for quick testing)
+# File: hybrid_gcs/training/configs/fast_train.yaml
+
+environment:
+  name: "manipulation"
+  state_dim: 20
+  action_dim: 6
+  max_steps: 100  # Reduced
+
+training:
+  num_episodes: 100  # Reduced for quick testing
+  batch_size: 16  # Smaller batch
+  num_epochs: 1  # Single epoch
+  update_frequency: 512  # Less frequent updates
+
+learning:
+  learning_rate: 5e-4  # Slightly higher
+  gamma: 0.99
+  gae_lambda: 0.95
+  entropy_coefficient: 0.02
+  value_coefficient: 0.5
+
+network:
+  policy:
+    hidden_layers: [32, 32]  # Smaller network
+    activation: "relu"
+  
+  value:
+    hidden_layers: [32, 32]
+    activation: "relu"
+
+curriculum:
+  enabled: false  # Disable curriculum for speed
+
+checkpointing:
+  enabled: true
+  frequency: 10
+  save_dir: "results/models/fast"
+  keep_best: false
+  keep_last: 1
+
+logging:
+  level: "WARNING"
+  frequency: 5
+  log_dir: "results/logs/fast"
+  tensorboard: false
+
+device: "cpu"
+seed: 42

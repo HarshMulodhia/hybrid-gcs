@@ -1,0 +1,73 @@
+# Drone Navigation Environment Configuration
+# File: configs/environments/drone.yaml
+
+environment:
+  name: "drone_navigation"
+  type: "multi_agent"
+  description: "Drone path planning and navigation"
+
+state_space:
+  dim: 18
+  components:
+    - position: 3
+    - velocity: 3
+    - orientation: 4
+    - angular_velocity: 3
+    - goal_direction: 3
+    - goal_distance: 1
+
+action_space:
+  dim: 4
+  type: "continuous"
+  bounds: [-1.0, 1.0]
+  mapping:
+    - "thrust_forward"
+    - "thrust_lateral"
+    - "thrust_vertical"
+    - "yaw_rate"
+
+physics:
+  gravity: 9.81
+  air_resistance: 0.1
+  timestep: 0.01  # 100 Hz
+  model: "quadrotor"
+
+drone:
+  mass: 1.0  # kg
+  inertia: [0.02, 0.02, 0.04]
+  max_speed: 5.0  # m/s
+  max_acceleration: 10.0  # m/s^2
+  max_thrust: 15.0  # N
+
+multi_agent:
+  num_drones: 1  # Can be changed
+  communication_range: 50.0  # m
+  collision_radius: 0.3  # m
+
+environment_bounds:
+  x: [-10, 10]
+  y: [-10, 10]
+  z: [0, 10]
+
+obstacles:
+  enabled: true
+  static_obstacles:
+    - type: "sphere"
+      position: [0, 0, 5]
+      radius: 1.0
+    - type: "box"
+      position: [5, 5, 2]
+      size: [2, 2, 2]
+
+rewards:
+  goal_reached: 100.0
+  collision_penalty: -50.0
+  boundary_penalty: -50.0
+  distance_reward: 1.0
+  efficiency_bonus: 10.0
+
+episode:
+  max_steps: 500
+  max_duration: 50.0  # seconds
+  success_distance: 0.5  # meters
+  early_termination: true

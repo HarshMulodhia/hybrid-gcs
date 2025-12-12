@@ -1,0 +1,66 @@
+# Simulator Configuration
+# File: configs/hardware/simulator.yaml
+
+hardware:
+  type: "simulator"
+  engine: "pybullet"
+  render_enabled: false
+  real_time: false
+
+physics:
+  gravity: [0, 0, -9.81]
+  timestep: 0.001
+  solver_iterations: 250
+  contact_stiffness: 1000.0
+  contact_damping: 100.0
+
+simulation:
+  # Advanced simulation parameters
+  use_reduced_deformable: true
+  enable_friction: true
+  friction_coefficient: 0.5
+  restitution: 0.0
+  
+  # Contact simulation
+  contact_filter_group: 1
+  contact_filter_mask: 1
+  contact_processing_threshold: 0.01
+
+environment:
+  floor:
+    enabled: true
+    friction: 0.5
+    restitution: 0.0
+  
+  lighting:
+    ambient: [0.5, 0.5, 0.5]
+    directional: [[0, 0, 1], [0.5, 0.5, 0.5]]
+
+cameras:
+  default:
+    position: [0, 0, 2]
+    target: [0, 0, 0]
+    width: 640
+    height: 480
+    fov: 60
+    near_plane: 0.01
+    far_plane: 100
+
+performance:
+  max_substeps: 10
+  warm_start: true
+  split_impulse: true
+  
+  gpu_acceleration:
+    enabled: false
+    device_id: 0
+
+rendering:
+  gui_enabled: false
+  debug_visualization: false
+  ground_texture: "default"
+  
+limits:
+  max_objects: 1000
+  max_joints: 10000
+  max_contacts: 100000

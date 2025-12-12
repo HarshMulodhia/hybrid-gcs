@@ -1,0 +1,35 @@
+# Development Dependencies
+# File: requirements_dev.txt
+
+# Include base requirements
+-r requirements.txt
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=3.0.0
+pytest-xdist>=3.0.0
+pytest-timeout>=2.1.0
+
+# Code Quality
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.950
+isort>=5.10.0
+pylint>=2.15.0
+autopep8>=1.7.0
+
+# Documentation
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0
+sphinx-autodoc-typehints>=1.19.0
+myst-parser>=0.18.0
+
+# Notebooks
+jupyter>=1.0.0
+notebook>=6.4.0
+ipykernel>=6.0.0
+jupyterlab>=3.5.0
+
+# Development Tools
+pre-commit>=2.20.0
+gitpython>=3.1.0
