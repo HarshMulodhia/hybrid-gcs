@@ -7,7 +7,7 @@ Computes various performance metrics for trajectories and policies.
 
 import logging
 from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 from scipy import signal
 
@@ -243,3 +243,151 @@ class MetricsAggregator:
     def clear(self) -> None:
         """Clear metrics."""
         self.metrics_list = []
+
+@dataclass
+class TrajectoryMetrics:
+    """
+    Comprehensive metrics for trajectory evaluation.
+    
+    Attributes:
+        path_length: Total length of the trajectory
+        smoothness: Trajectory smoothness score (0-1)
+        clearance: Minimum distance to obstacles
+        execution_time: Time to execute trajectory
+        energy_cost: Energy consumption estimate
+        waypoint_count: Number of waypoints
+        direction_changes: Number of direction changes
+        success: Whether trajectory was successful
+    """
+    path_length: float
+    smoothness: float
+    clearance: float
+    execution_time: float
+    energy_cost: float
+    waypoint_count: int
+    direction_changes: int
+    success: bool
+    metadata: Dict = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            "path_length": self.path_length,
+            "smoothness": self.smoothness,
+            "clearance": self.clearance,
+            "execution_time": self.execution_time,
+            "energy_cost": self.energy_cost,
+            "waypoint_count": self.waypoint_count,
+            "direction_changes": self.direction_changes,
+            "success": self.success,
+            **self.metadata,
+        }
+    
+    def __str__(self) -> str:
+        """String representation."""
+        return (
+            f"TrajectoryMetrics(\n"
+            f"  path_length={self.path_length:.4f}\n"
+            f"  smoothness={self.smoothness:.4f}\n"
+            f"  clearance={self.clearance:.4f}\n"
+            f"  execution_time={self.execution_time:.2f}s\n"
+            f"  energy_cost={self.energy_cost:.4f}\n"
+            f"  waypoints={self.waypoint_count}\n"
+            f"  direction_changes={self.direction_changes}\n"
+            f"  success={self.success}\n"
+            f")"
+        )
+
+
+class TrajectoryAnalyzer:
+    """Analyze trajectory properties and metrics."""
+    
+    @staticmethod
+    def compute_path_length(waypoints: np.ndarray) -> float:
+        """
+        Compute total path length.
+        
+        Args:
+            waypoints: Array of waypoints (N, D)
+            
+        Returns:
+            Total path length
+        """
+        if len(waypoints) < 2:
+            return 0.0
+        
+        distances = np.linalg.norm(
+            np.diff(waypoints, axis=0), 
+            axis=1
+        )
+        return float(np.sum(distances))
+    
+    @staticmethod
+    def compute_smoothness(waypoints: np.ndarray) -> float:
+        """
+        Compute trajectory smoothness (0-1, higher is smoother).
+        
+        Args:
+            waypoints: Array of waypoints (N, D)
+            
+        Returns:
+            Smoothness score
+        """
+        if len(waypoints) < 3:
+            return 1.0
+        
+        # Compute direction changes
+        segments = np.diff(waypoints, axis=0)
+        if len(segments) < 2:
+            return 1.0
+        
+        # Normalize segments
+        lengths = np.linalg.norm(segments, axis=1, keepdims=True)
+        normalized = segments / (lengths + 1e-6)
+        
+        # Compute angles between consecutive segments
+        dot_products = np.sum(
+            normalized[:-1] * normalized[1:], 
+            axis=1
+        )
+        dot_products = np.clip(dot_products, -1.0, 1.0)
+        angles = np.arccos(dot_products)
+        
+        # Smoothness: inverse of angle variance
+        angle_variance = np.var(angles)
+        smoothness = 1.0 / (1.0 + angle_variance)
+        
+        return float(smoothness)
+    
+    @staticmethod
+    def compute_direction_changes(waypoints: np.ndarray) -> int:
+        """
+        Count direction changes in trajectory.
+        
+        Args:
+            waypoints: Array of waypoints (N, D)
+            
+        Returns:
+            Number of direction changes
+        """
+        if len(waypoints) < 3:
+            return 0
+        
+        segments = np.diff(waypoints, axis=0)
+        if len(segments) < 2:
+            return 0
+        
+        # Normalize segments
+        lengths = np.linalg.norm(segments, axis=1, keepdims=True)
+        normalized = segments / (lengths + 1e-6)
+        
+        # Compute dot products between consecutive segments
+        dot_products = np.sum(
+            normalized[:-1] * normalized[1:], 
+            axis=1
+        )
+        
+        # Count direction changes (dot product < 0)
+        changes = int(np.sum(dot_products < 0))
+        
+        return changes

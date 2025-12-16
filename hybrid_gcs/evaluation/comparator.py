@@ -7,7 +7,7 @@ Compares different planning/learning methods for benchmarking.
 
 import logging
 from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 from scipy import stats
 
@@ -245,3 +245,163 @@ class MethodComparator:
             'significance_rate': significant_count / len(self.results),
             'average_improvement': np.mean([r.improvement for r in self.results]),
         }
+
+@dataclass
+class ComparisonResult:
+    """
+    Results from comparing two methods.
+    
+    Attributes:
+        method_a_name: Name of first method
+        method_b_name: Name of second method
+        method_a_mean: Mean score of method A
+        method_b_mean: Mean score of method B
+        method_a_std: Std dev of method A
+        method_b_std: Std dev of method B
+        improvement: Percent improvement from A to B
+        statistical_significant: Whether difference is significant
+        p_value: P-value from statistical test
+        effect_size: Effect size (Cohen's d or similar)
+        notes: Additional notes
+    """
+    method_a_name: str
+    method_b_name: str
+    method_a_mean: float
+    method_b_mean: float
+    method_a_std: float
+    method_b_std: float
+    improvement: float
+    statistical_significant: bool
+    p_value: float
+    effect_size: float
+    notes: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            "method_a_name": self.method_a_name,
+            "method_b_name": self.method_b_name,
+            "method_a_mean": self.method_a_mean,
+            "method_b_mean": self.method_b_mean,
+            "method_a_std": self.method_a_std,
+            "method_b_std": self.method_b_std,
+            "improvement_percent": self.improvement,
+            "statistical_significant": self.statistical_significant,
+            "p_value": self.p_value,
+            "effect_size": self.effect_size,
+            "notes": self.notes,
+            **self.metadata,
+        }
+    
+    def __str__(self) -> str:
+        """String representation."""
+        sig_str = "✓ Significant" if self.statistical_significant else "✗ Not significant"
+        return (
+            f"Comparison Result: {self.method_a_name} vs {self.method_b_name}\n"
+            f"  {self.method_a_name}: {self.method_a_mean:.4f} ± {self.method_a_std:.4f}\n"
+            f"  {self.method_b_name}: {self.method_b_mean:.4f} ± {self.method_b_std:.4f}\n"
+            f"  Improvement: {self.improvement:.2f}%\n"
+            f"  Effect Size: {self.effect_size:.4f}\n"
+            f"  P-value: {self.p_value:.4f} ({sig_str})\n"
+            f"  Notes: {self.notes}"
+        )
+    
+    def winner(self) -> str:
+        """Get the winning method name."""
+        if self.method_b_mean > self.method_a_mean:
+            return self.method_b_name
+        elif self.method_a_mean > self.method_b_mean:
+            return self.method_a_name
+        else:
+            return "Tie"
+
+
+class ResultsValidator:
+    """Validate and check comparison results."""
+    
+    @staticmethod
+    def validate_results(
+        method_a_data: np.ndarray,
+        method_b_data: np.ndarray,
+        min_samples: int = 3,
+    ) -> Dict[str, Any]:
+        """
+        Validate results data.
+        
+        Args:
+            method_a_data: Results from method A
+            method_b_data: Results from method B
+            min_samples: Minimum samples required
+            
+        Returns:
+            Validation report
+        """
+        report = {
+            "valid": True,
+            "warnings": [],
+            "errors": [],
+        }
+        
+        # Check sample sizes
+        if len(method_a_data) < min_samples:
+            report["errors"].append(
+                f"Method A: insufficient samples ({len(method_a_data)} < {min_samples})"
+            )
+            report["valid"] = False
+        
+        if len(method_b_data) < min_samples:
+            report["errors"].append(
+                f"Method B: insufficient samples ({len(method_b_data)} < {min_samples})"
+            )
+            report["valid"] = False
+        
+        # Check for NaN values
+        a_nans = np.isnan(method_a_data).sum()
+        b_nans = np.isnan(method_b_data).sum()
+        
+        if a_nans > 0:
+            report["warnings"].append(f"Method A: {a_nans} NaN values")
+        if b_nans > 0:
+            report["warnings"].append(f"Method B: {b_nans} NaN values")
+        
+        # Check for infinite values
+        a_infs = np.isinf(method_a_data).sum()
+        b_infs = np.isinf(method_b_data).sum()
+        
+        if a_infs > 0:
+            report["errors"].append(f"Method A: {a_infs} infinite values")
+            report["valid"] = False
+        if b_infs > 0:
+            report["errors"].append(f"Method B: {b_infs} infinite values")
+            report["valid"] = False
+        
+        return report
+    
+    @staticmethod
+    def check_practical_significance(
+        method_a_mean: float,
+        method_b_mean: float,
+        effect_size: float,
+        min_effect_size: float = 0.2,
+    ) -> str:
+        """
+        Check if improvement is practically significant.
+        
+        Args:
+            method_a_mean: Mean of method A
+            method_b_mean: Mean of method B
+            effect_size: Effect size (Cohen's d)
+            min_effect_size: Minimum effect size threshold
+            
+        Returns:
+            Significance assessment
+        """
+        if abs(effect_size) < min_effect_size:
+            return "negligible"
+        elif abs(effect_size) < 0.5:
+            return "small"
+        elif abs(effect_size) < 0.8:
+            return "medium"
+        else:
+            return "large"

@@ -1,86 +1,177 @@
 """
-Comprehensive Training Script
+Hybrid-GCS Training Script
+
 File: scripts/train.py
 
-Complete training pipeline with all features.
+Description:
+This script provides a production-grade command-line interface for training
+Hybrid-GCS models using the OptimizedTrainer and ConfigLoader.
+
+Features:
+- Load configurations from YAML files or presets.
+- Override any configuration parameter via CLI.
+- Comprehensive logging and command-line feedback.
+- Seed management for reproducibility.
+- Automatic directory creation for results.
+- Full integration with TensorBoard.
 """
 
-import logging
 import argparse
-from pathlib import Path
-from typing import Dict, Any
+import logging
+import os
+import sys
 import numpy as np
+import torch
 
+# Add project root to Python path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, PROJECT_ROOT)
+
+from hybrid_gcs.training.configs.config_loader import ConfigLoader, TrainingConfig
+from hybrid_gcs.training.optimized_trainer import OptimizedTrainer
+from hybrid_gcs.environments import ManipulationEnvironment, DroneNavigationEnvironment
+from hybrid_gcs.core import ActorNetwork, CriticNetwork
+
+# --- Logger Setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] - %(message)s',
+    stream=sys.stdout
+)
 logger = logging.getLogger(__name__)
 
 
-def setup_logging(log_level: str = "INFO", log_file: str = "training.log") -> None:
-    """Setup logging."""
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler(),
-        ]
-    )
+def create_environment(config: TrainingConfig):
+    """Creates an environment based on the configuration."""
+    if config.env_name == 'manipulation':
+        return ManipulationEnvironment(
+            state_dim=config.state_dim,
+            action_dim=config.action_dim,
+            task=config.task
+        )
+    elif config.env_name == 'drone':
+        return DroneNavigationEnvironment()
+    else:
+        raise ValueError(f"Unknown environment: {config.env_name}")
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Train Hybrid-GCS model")
-    
-    parser.add_argument("--config", type=str, help="Config file path")
-    parser.add_argument("--env", type=str, default="manipulation", help="Environment")
-    parser.add_argument("--episodes", type=int, default=1000, help="Number of episodes")
-    parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
-    parser.add_argument("--learning-rate", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--save-dir", type=str, default="results/models", help="Save directory")
-    parser.add_argument("--log-level", type=str, default="INFO", help="Log level")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    
-    return parser.parse_args()
+def create_models(config: TrainingConfig, device: torch.device):
+    """Creates actor and critic models."""
+    actor = ActorNetwork(
+        state_dim=config.state_dim,
+        action_dim=config.action_dim,
+        hidden_sizes=config.actor_hidden_sizes,
+        activation=config.activation
+    ).to(device)
 
-
-def train(args: argparse.Namespace) -> Dict[str, Any]:
-    """
-    Run training.
+    critic = CriticNetwork(
+        state_dim=config.state_dim,
+        hidden_sizes=config.critic_hidden_sizes,
+        activation=config.activation
+    ).to(device)
     
-    Args:
-        args: Command-line arguments
-        
-    Returns:
-        Training results
-    """
-    setup_logging(args.log_level)
-    logger.info(f"Starting training with config: {args.config}")
-    
-    # Set random seed
-    np.random.seed(args.seed)
-    
-    # Create directories
-    Path(args.save_dir).mkdir(parents=True, exist_ok=True)
-    
-    # Training loop
-    logger.info(f"Training for {args.episodes} episodes...")
-    
-    results = {
-        'total_episodes': args.episodes,
-        'final_reward': 0.0,
-        'avg_reward': 0.0,
-        'success_rate': 0.0,
-    }
-    
-    logger.info(f"Training completed! Results: {results}")
-    
-    return results
+    return actor, critic
 
 
 def main():
-    """Main entry point."""
-    args = parse_args()
-    train(args)
+    """Main training entry point."""
+    parser = argparse.ArgumentParser(description="Train Hybrid-GCS Models")
+
+    # --- Configuration Arguments ---
+    parser.add_argument('--config', type=str, help="Path to YAML config file.")
+    parser.addargument('--preset', type=str, help="Use a preset configuration (e.g., 'standard', 'high_quality').")
+    
+    # --- Key Training Parameter Overrides ---
+    parser.add_argument('--total_timesteps', type=int, help="Override total training timesteps.")
+    parser.add_argument('--env_name', type=str, help="Environment name (e.g., 'manipulation').")
+    parser.add_argument('--batch_size', type=int, help="Override batch size.")
+    parser.add_argument('--learning_rate', type=float, help="Override learning rate.")
+    
+    # --- Output & Logging ---
+    parser.add_argument('--save_dir', type=str, default='results', help="Directory to save models and logs.")
+    parser.add_argument('--log_level', type=str, default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
+
+    # --- Reproducibility ---
+    parser.add_argument('--seed', type=int, default=42, help="Random seed for reproducibility.")
+
+    args = parser.parse_args()
+
+    # --- Set Logging Level ---
+    logger.setLevel(getattr(logging, args.log_level.upper()))
+    
+    # --- Set Seed ---
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    logger.info(f"Using random seed: {args.seed}")
+
+    # --- Load Configuration ---
+    config_loader = ConfigLoader()
+    
+    # Create an override dictionary from CLI arguments
+    overrides = {
+        'total_timesteps': args.total_timesteps,
+        'env_name': args.env_name,
+        'batch_size': args.batch_size,
+        'learning_rate': args.learning_rate,
+        'save_dir': args.save_dir,
+    }
+    # Filter out None values so they don't override defaults
+    cli_overrides = {k: v for k, v in overrides.items() if v is not None}
+
+    try:
+        config_dict = config_loader.load_config(
+            path=args.config,
+            preset=args.preset,
+            overrides=cli_overrides
+        )
+        # Convert dictionary to TrainingConfig dataclass
+        config = TrainingConfig(**config_dict)
+        logger.info(f"Configuration loaded successfully. Preset: '{args.preset}', Path: '{args.config}'.")
+        
+    except (ValueError, FileNotFoundError) as e:
+        logger.error(f"Configuration Error: {e}")
+        sys.exit(1)
+
+    # --- Prepare for Training ---
+    # Ensure directories exist
+    os.makedirs(config.save_dir, exist_ok=True)
+    os.makedirs(os.path.join(config.save_dir, 'checkpoints'), exist_ok=True)
+    config.log_dir = os.path.join(config.save_dir, 'logs') # Set log_dir within save_dir
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info(f"Training on device: {device}")
+
+    # --- Initialize Components ---
+    try:
+        env = create_environment(config)
+        actor, critic = create_models(config, device)
+        
+        trainer = OptimizedTrainer(
+            config=config,
+            actor=actor,
+            critic=critic,
+            env=env,
+            callbacks=[]  # Add any callbacks here
+        )
+    except Exception as e:
+        logger.error(f"Initialization failed: {e}")
+        sys.exit(1)
+
+    # --- Start Training ---
+    logger.info("Starting training...")
+    try:
+        final_metrics = trainer.train()
+        logger.info("Training finished successfully.")
+        logger.info(f"Final Metrics: {final_metrics}")
+    except Exception as e:
+        logger.error(f"An error occurred during training: {e}", exc_info=True)
+        sys.exit(1)
+        
+    # --- Save Final Model ---
+    final_model_path = os.path.join(config.save_dir, 'models', 'final_model.pt')
+    trainer.save_checkpoint(path=final_model_path)
+    logger.info(f"Final model saved to {final_model_path}")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

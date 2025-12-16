@@ -40,6 +40,9 @@ from hybrid_gcs.evaluation import (
     EvaluationConfig,
     MetricsComputer,
     PerformanceMetrics,
+    StatisticalAnalysis,
+    StatisticalResult,
+    TrendAnalysis,
 )
 
 # Visualization imports
@@ -88,6 +91,9 @@ __all__ = [
     "EvaluationConfig",
     "MetricsComputer",
     "PerformanceMetrics",
+    "StatisticalAnalysis",
+    "StatisticalResult",
+    "TrendAnalysis",
     
     # Visualization
     "Dashboard",
